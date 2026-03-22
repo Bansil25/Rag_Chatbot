@@ -61,6 +61,7 @@ def load_index():
     )
 
 
+'''
 def build_rag_chain(vectorstore):
     """Return a runnable RAG chain given a loaded vectorstore."""
     retriever = vectorstore.as_retriever(search_kwargs={'k': 3})
@@ -107,7 +108,44 @@ Context:
         | StrOutputParser()
     )
     return chain
+'''
+# ADDED CHAT MEMORY (CHATBOT REMEMBERS PREVIOUS QUESTION IN THE SAME SEASSION)
 
+from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
+
+def build_rag_chain(vectorstore):
+    retriever = vectorstore.as_retriever(search_kwargs={'k': 3})
+
+    def doc_format(docs):
+        parts = []
+        for doc in docs:
+            src  = doc.metadata.get('source', 'unknown')
+            page = doc.metadata.get('page', '?')
+            parts.append(f'[Source: {src}, Page: {page+1}]\n{doc.page_content}')
+        return "\n\n".join(parts)
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a helpful assistant that answers questions
+based ONLY on the provided document context.
+If the answer is not in the context, say:
+'I could not find that information in the uploaded document.'
+Always mention which page or source the answer came from.
+Context: {context}"""),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{question}"),
+    ])
+
+    llm = ChatOpenAI(model='gpt-4o-mini', temperature=0)
+    chain = (
+        {
+            "context":      retriever | doc_format,
+            "question":     RunnablePassthrough(),
+            "chat_history": lambda _: st.session_state.get("chat_history", [])
+        }
+        | prompt | llm | StrOutputParser()
+    )
+    return chain
 
 def ask(chain, question: str) -> str:
     """Invoke the chain with a question, return answer string."""

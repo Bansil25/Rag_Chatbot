@@ -61,12 +61,22 @@ def load_index():
     )
 
 
-'''
 def build_rag_chain(vectorstore):
-    """Return a runnable RAG chain given a loaded vectorstore."""
-    retriever = vectorstore.as_retriever(search_kwargs={'k': 3})
+
+# Return a runnable RAG chain given a loaded vectorstore.
+   # retriever = vectorstore.as_retriever(search_kwargs={'k': 3}) # basic top k only
 
     '''
+    MMR (Maximal Marginal Relevance) returns more diverse chunks — better answers for complex questions.
+    fetch_k=10 means FAISS fetches 10 candidates first, then MMR picks the 3 most diverse ones from those 10.
+    Better coverage of the document, less repetitive context.
+    '''
+     retriever = vectorstore.as_retriever(
+     search_type="mmr",
+     search_kwargs={"k": 3, "fetch_k": 10}
+        )
+
+
    # ADD SOURCE ONLY
     def doc_format(docs):
         parts = []
